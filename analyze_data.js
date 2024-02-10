@@ -1,28 +1,25 @@
-// analyze_data.js
 const { spawn } = require("child_process");
-const fs = require("fs");
-const path = require("path");
 
-// Define file paths
-const pythonScript = path.join(__dirname, "python/analyze_data.py");
-const outputFilePath = path.join(__dirname, "statistics.txt");
+// Define the path to your Python script
+const pythonScript = "python/analyze_data.py";
 
+// Spawn a new process to run the Python script
 const pythonProcess = spawn("python", [pythonScript]);
 
-let output = "";
-
+// Listen for stdout data from the Python script
 pythonProcess.stdout.on("data", (data) => {
-  output += data.toString();
+  console.log(`Python script output: ${data}`);
 });
 
+// Listen for stderr data from the Python script
 pythonProcess.stderr.on("data", (data) => {
-  console.error(`Error: ${data}`);
+  console.error(`Error running Python script: ${data}`);
 });
 
+// Listen for the Python script to close
 pythonProcess.on("close", (code) => {
   if (code === 0) {
-    fs.writeFileSync(outputFilePath, output);
-    console.log("Statistics exported to statistics.txt");
+    console.log("Python script executed successfully");
   } else {
     console.error(`Python script exited with code ${code}`);
   }
