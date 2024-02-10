@@ -1,0 +1,8 @@
+CSV file loaded successfully
+         Date  New Cases  New Deaths  Total Cases  Total Deaths Recovery Rate
+0  2024-02-04        120           2          120             2            0%
+1  2024-02-05        145           3          265             5            0%
+2  2024-02-06        112           1          377             6            0%
+3  2024-02-07         98           0          475             6            0%
+4  2024-02-08        131           2          606             8            0%
+Statistics exported to statistics.txt
