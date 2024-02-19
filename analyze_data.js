@@ -1,62 +1,49 @@
 const { spawn } = require("child_process");
 const mysql = require("mysql");
 
-// Define the path to your Python script
 const pythonScript = "python/analyze_data.py";
 
-// Spawn a new process to run the Python script
-const pythonProcess = spawn("python", [pythonScript]);
-
-// Listen for stdout data from the Python script
-pythonProcess.stdout.on("data", (data) => {
-  console.log(`Python script output: ${data}`);
+const connection = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "covid_data",
 });
 
-// Listen for stderr data from the Python script
-pythonProcess.stderr.on("data", (data) => {
-  console.error(`Error running Python script: ${data}`);
+connection.connect((err) => {
+  if (err) {
+    console.error("Error connecting to MySQL server:", err);
+    return;
+  }
+  console.log("Connected to MySQL server");
+  runPythonScript();
 });
 
-// Listen for the Python script to close
-pythonProcess.on("close", (code) => {
-  if (code === 0) {
-    console.log("Python script executed successfully");
+function runPythonScript() {
+  const pythonProcess = spawn("python", [pythonScript]);
 
-    // Create a connection to the MySQL server
-    const connection = mysql.createConnection({
-      host: "localhost",
-      user: "root",
-      password: "",
-    });
+  pythonProcess.stdout.on("data", (data) => {
+    console.log(`Python script output: ${data}`);
+  });
 
-    // Connect to the MySQL server
-    connection.connect((err) => {
-      if (err) {
-        console.error("Error connecting to MySQL server:", err);
-        return;
-      }
-      console.log("Connected to MySQL server");
+  pythonProcess.stderr.on("data", (data) => {
+    console.error(`Error running Python script: ${data}`);
+  });
 
-      // Create the database if it doesn't exist
-      connection.query("CREATE DATABASE IF NOT EXISTS covid_data", (err) => {
-        if (err) {
-          console.error("Error creating database:", err);
-          return;
-        }
-        console.log("Database created");
+  pythonProcess.on("close", (code) => {
+    if (code === 0) {
+      console.log("Python script executed successfully");
+      createTables();
+    } else {
+      console.error(`Python script exited with code ${code}`);
+    }
+  });
+}
 
-        // Use the database
-        connection.query("USE covid_data", (err) => {
-          if (err) {
-            console.error("Error using database:", err);
-            return;
-          }
-          console.log("Using database");
-
-          // Define schema and create tables
-          const tables = [
-            // Define your CREATE TABLE statements here
-            `CREATE TABLE IF NOT EXISTS full_table (
+function createTables() {
+  const tables = [
+    // Define your CREATE TABLE statements here
+    `CREATE TABLE IF NOT EXISTS full_table (
                     Province_State VARCHAR(255),
                     Country_Region VARCHAR(255),
                     Lat DECIMAL(10, 8),
@@ -68,7 +55,7 @@ pythonProcess.on("close", (code) => {
                     Active INT,
                     WHO_Region VARCHAR(255)
                 )`,
-            `CREATE TABLE IF NOT EXISTS full_grouped (
+    `CREATE TABLE IF NOT EXISTS full_grouped (
                     Date BIGINT,
                     Country_Region VARCHAR(255),
                     Confirmed INT,
@@ -82,7 +69,7 @@ pythonProcess.on("close", (code) => {
                     Week_Number INT,
                     Month INT
                 )`,
-            `CREATE TABLE IF NOT EXISTS day_wise (
+    `CREATE TABLE IF NOT EXISTS day_wise (
                     Date BIGINT,
                     Confirmed INT,
                     Deaths INT,
@@ -96,7 +83,7 @@ pythonProcess.on("close", (code) => {
                     Deaths_per_100_recovered DECIMAL(18,2),
                     No_of_countries INT
                 )`,
-            `CREATE TABLE IF NOT EXISTS week_wise (
+    `CREATE TABLE IF NOT EXISTS week_wise (
                     Week_Number INT,
                     Confirmed INT,
                     Deaths INT,
@@ -106,7 +93,7 @@ pythonProcess.on("close", (code) => {
                     New_deaths INT,
                     New_recovered INT
                 )`,
-            `CREATE TABLE IF NOT EXISTS month_wise (
+    `CREATE TABLE IF NOT EXISTS month_wise (
                     Month INT,
                     Confirmed INT,
                     Deaths INT,
@@ -116,7 +103,7 @@ pythonProcess.on("close", (code) => {
                     New_deaths INT,
                     New_recovered INT
                 )`,
-            `CREATE TABLE IF NOT EXISTS country_wise (
+    `CREATE TABLE IF NOT EXISTS country_wise (
                     Country_Region VARCHAR(255),
                     Confirmed INT,
                     Deaths INT,
@@ -133,7 +120,7 @@ pythonProcess.on("close", (code) => {
                     One_week_percent_increase DECIMAL(18,2),
                     WHO_Region VARCHAR(255)
                 )`,
-            `CREATE TABLE IF NOT EXISTS worldometer_data (
+    `CREATE TABLE IF NOT EXISTS worldometer_data (
                     Country_Region VARCHAR(255),
                     Continent VARCHAR(255),
                     Population DECIMAL(18,1),
@@ -151,7 +138,7 @@ pythonProcess.on("close", (code) => {
                     Tests_per_1M_pop DECIMAL(18,1),
                     WHO_Region VARCHAR(255)
                 )`,
-            `CREATE TABLE IF NOT EXISTS temp (
+    `CREATE TABLE IF NOT EXISTS temp (
                     Country_Region VARCHAR(255),
                     Confirmed INT,
                     Deaths INT,
@@ -168,12 +155,12 @@ pythonProcess.on("close", (code) => {
                     One_week_percent_increase FLOAT,
                     WHO_Region VARCHAR(255)
                 )`,
-            `CREATE TABLE IF NOT EXISTS usa_grouped (
+    `CREATE TABLE IF NOT EXISTS usa_grouped (
                     Province_State VARCHAR(255),
                     Confirmed INT,
                     Deaths INT
                 )`,
-            `CREATE TABLE IF NOT EXISTS who (
+    `CREATE TABLE IF NOT EXISTS who (
                     WHO_Region VARCHAR(255),
                     Confirmed INT,
                     Deaths INT,
@@ -184,7 +171,7 @@ pythonProcess.on("close", (code) => {
                     Fatality_Rate DECIMAL(18,2),
                     Recovery_Rate DECIMAL(18,2)
                 )`,
-            `CREATE TABLE IF NOT EXISTS who_g (
+    `CREATE TABLE IF NOT EXISTS who_g (
                     WHO_Region VARCHAR(255),
                     Date BIGINT,
                     Confirmed INT,
@@ -194,30 +181,17 @@ pythonProcess.on("close", (code) => {
                     New_cases INT,
                     New_deaths INT
                 )`,
-          ];
+  ];
 
-          // Execute SQL commands to create tables
-          tables.forEach((tableSql) => {
-            connection.query(tableSql, (err, results) => {
-              if (err) {
-                console.error("Error creating table:", err);
-                return;
-              }
-              console.log("Table created:", tableSql);
-            });
-          });
-
-          // Close the connection when done
-          connection.end();
-        });
-      });
+  tables.forEach((tableSql) => {
+    connection.query(tableSql, (err, results) => {
+      if (err) {
+        console.error("Error creating table:", err);
+        return;
+      }
+      console.log("Table created:", tableSql);
     });
+  });
 
-    // Handle errors during connection
-    connection.on("error", (err) => {
-      console.error("Database connection error:", err);
-    });
-  } else {
-    console.error(`Python script exited with code ${code}`);
-  }
-});
+  connection.end();
+}
